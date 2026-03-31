@@ -8,14 +8,13 @@ interface FeedbackLoopProps {
 
 /**
  * Fig 3.2 — Positive Feedback Loop (Systems Thinking Diagram)
- *
  * Adapted from De Souza Batista et al., "Deforestation Induced Changes"
  *
- * This is NOT a simple ring. The original diagram shows:
- * - A causal chain: Deforestation → Altered Rainfall → Crop Yields (central hub)
- * - The central "Crop Yields" hub radiates to multiple economic consequences
- * - Two branches of consequences converge on "Cargill is Affected"
- * - Cargill feeds back to Deforestation, closing the positive feedback loop
+ * Visually matched to the original Sway diagram:
+ * - Pink/magenta top nodes, red central hub, orange cascading nodes
+ * - Bright lime-green Cargill node, teal State Revenue
+ * - Yellow/gold arrows throughout
+ * - Hub-and-spoke topology with branching economic consequences
  */
 
 interface NodeDef {
@@ -27,29 +26,31 @@ interface NodeDef {
   r: number;
 }
 
-// Positions based on the original diagram layout
+// Positions closely matching the original diagram layout
 const NODES: NodeDef[] = [
-  // Top: initial cause chain
-  { id: "deforestation", label: "Deforestation", color: "#9B2335", x: 400, y: 60, r: 38 },
-  { id: "rainfall", label: "Altered Rainfall\nPatterns", color: "#E07B39", x: 610, y: 140, r: 34 },
+  // Top: initial cause (pink/magenta in original)
+  { id: "deforestation", label: "Deforestation", color: "#D64B8A", x: 360, y: 55, r: 36 },
+  { id: "rainfall", label: "Altered Rainfall\nPatterns", color: "#E8873C", x: 540, y: 120, r: 32 },
 
-  // Center: the HUB
-  { id: "yields", label: "Crop Yields &\nFarming Impacted", color: "#CC2936", x: 500, y: 280, r: 52 },
+  // Center: the HUB (bright red, largest)
+  { id: "yields", label: "Crop Yields &\nFarming Impacted", color: "#E53030", x: 400, y: 260, r: 56 },
 
-  // Right branch (economic)
-  { id: "export", label: "Loss in Export\nRevenue", color: "#E07B39", x: 680, y: 400, r: 32 },
+  // Upper left branch
+  { id: "incomes", label: "Farm Incomes\nFall", color: "#F09030", x: 270, y: 120, r: 30 },
 
-  // Left branch (cascading economic effects)
-  { id: "incomes", label: "Farm Incomes\nFall", color: "#E07B39", x: 350, y: 150, r: 32 },
-  { id: "state", label: "State Revenue\nDeclines", color: "#4A8C5C", x: 180, y: 260, r: 34 },
-  { id: "bonds", label: "Loss for Sovereign\nBond Investors", color: "#D06830", x: 200, y: 430, r: 34 },
-  { id: "supply", label: "Loss for Investors\nin Supply Chain", color: "#E07B39", x: 380, y: 480, r: 34 },
+  // Left cascade
+  { id: "state", label: "State Revenue\nDeclines", color: "#3EA17D", x: 160, y: 240, r: 32 },
+  { id: "bonds", label: "Loss for Sovereign\nBond Investors", color: "#D07030", x: 200, y: 400, r: 33 },
+  { id: "supply", label: "Loss for Investors\nin Supply Chain", color: "#F09030", x: 340, y: 450, r: 33 },
 
-  // Convergence point
-  { id: "cargill", label: "Cargill is\nAffected", color: "#7CCC2E", x: 680, y: 250, r: 36 },
+  // Right branch
+  { id: "export", label: "Loss in Export\nRevenue", color: "#F09030", x: 580, y: 350, r: 32 },
+
+  // Convergence (bright lime-green in original)
+  { id: "cargill", label: "Cargill is\nAffected", color: "#A8D534", x: 620, y: 180, r: 34 },
 ];
 
-// Arrows: [fromId, toId]
+// Directed edges: [fromId, toId]
 const ARROWS: [string, string][] = [
   // Causal chain
   ["deforestation", "rainfall"],
@@ -60,16 +61,16 @@ const ARROWS: [string, string][] = [
   ["yields", "export"],
   ["yields", "state"],
 
-  // Left cascade
+  // Left cascade: incomes → state → bonds → supply chain
   ["incomes", "state"],
   ["state", "bonds"],
   ["bonds", "supply"],
 
-  // Convergence on Cargill
+  // Convergence on Cargill from two paths
   ["supply", "cargill"],
   ["export", "cargill"],
 
-  // Feedback loop closure
+  // Feedback loop closure (back to deforestation)
   ["cargill", "deforestation"],
 ];
 
@@ -85,16 +86,16 @@ function arrowPath(from: NodeDef, to: NodeDef, curveDir: number = 1): string {
   const ux = dx / dist;
   const uy = dy / dist;
 
-  const gap = 6;
+  const gap = 5;
   const sx = from.x + ux * (from.r + gap);
   const sy = from.y + uy * (from.r + gap);
-  const ex = to.x - ux * (to.r + gap + 6);
-  const ey = to.y - uy * (to.r + gap + 6);
+  const ex = to.x - ux * (to.r + gap + 8);
+  const ey = to.y - uy * (to.r + gap + 8);
 
   // Perpendicular offset for curve
   const perpX = uy * curveDir;
   const perpY = -ux * curveDir;
-  const curvature = dist * 0.18;
+  const curvature = dist * 0.15;
   const cpx = (sx + ex) / 2 + perpX * curvature;
   const cpy = (sy + ey) / 2 + perpY * curvature;
 
@@ -139,12 +140,11 @@ function MultilineText({
   );
 }
 
-// Determine curve direction for each arrow to avoid overlaps
+// Custom curve directions to avoid overlapping arrows
 function getCurveDir(fromId: string, toId: string): number {
-  // Feedback arrow (Cargill → Deforestation) curves the other way
   if (fromId === "cargill" && toId === "deforestation") return -1;
-  // Supply chain → Cargill curves right
   if (fromId === "supply" && toId === "cargill") return -1;
+  if (fromId === "yields" && toId === "state") return -1;
   return 1;
 }
 
@@ -159,119 +159,94 @@ export default function FeedbackLoop({ className }: FeedbackLoopProps) {
       }}
     >
       <svg
-        viewBox="0 0 800 560"
+        viewBox="0 0 780 520"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full max-w-[800px] mx-auto"
+        className="w-full max-w-[780px] mx-auto"
         role="img"
-        aria-label="Systems diagram showing deforestation-yield positive feedback loop with branching economic consequences"
+        aria-label="Systems diagram showing deforestation-yield positive feedback loop"
       >
         <defs>
+          {/* Yellow/gold arrowhead matching original */}
           <marker
-            id="fbArrow"
+            id="fbArrowGold"
             viewBox="0 0 12 10"
             refX="10"
             refY="5"
-            markerWidth="8"
-            markerHeight="8"
+            markerWidth="9"
+            markerHeight="9"
             orient="auto"
           >
-            <path d="M 0 1 L 12 5 L 0 9 L 3 5 Z" fill="#8B7355" />
+            <path d="M 0 1 L 12 5 L 0 9 L 3 5 Z" fill="#D4A832" />
           </marker>
 
+          {/* Red arrowhead for feedback closure */}
           <marker
             id="fbArrowRed"
             viewBox="0 0 12 10"
             refX="10"
             refY="5"
-            markerWidth="8"
-            markerHeight="8"
+            markerWidth="9"
+            markerHeight="9"
             orient="auto"
           >
-            <path d="M 0 1 L 12 5 L 0 9 L 3 5 Z" fill="#CC2936" />
+            <path d="M 0 1 L 12 5 L 0 9 L 3 5 Z" fill="#E53030" />
           </marker>
 
-          <filter id="nodeShadow2" x="-20%" y="-20%" width="140%" height="140%">
+          {/* Drop shadow */}
+          <filter id="nodeShadow3" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow
               dx="0"
               dy="2"
               stdDeviation="3"
               floodColor="#000"
-              floodOpacity="0.15"
+              floodOpacity="0.18"
             />
           </filter>
         </defs>
 
-        {/* Arrows */}
+        {/* Yellow/gold arrows */}
         {ARROWS.map(([fromId, toId], i) => {
           const from = getNode(fromId);
           const to = getNode(toId);
           const curveDir = getCurveDir(fromId, toId);
           const d = arrowPath(from, to, curveDir);
-          // Feedback loop closure arrow is highlighted
           const isFeedback = fromId === "cargill" && toId === "deforestation";
           return (
             <path
               key={`arrow-${i}`}
               d={d}
               fill="none"
-              stroke={isFeedback ? "#CC2936" : "#8B7355"}
-              strokeWidth={isFeedback ? 2.5 : 2}
+              stroke={isFeedback ? "#E53030" : "#D4A832"}
+              strokeWidth={isFeedback ? 2.5 : 2.5}
               strokeLinecap="round"
               strokeDasharray={isFeedback ? "6 4" : "none"}
-              markerEnd={isFeedback ? "url(#fbArrowRed)" : "url(#fbArrow)"}
-              opacity={0.7}
+              markerEnd={isFeedback ? "url(#fbArrowRed)" : "url(#fbArrowGold)"}
             />
           );
         })}
 
-        {/* Central label */}
-        <text
-          x={420}
-          y={380}
-          textAnchor="middle"
-          fontSize="11"
-          fontWeight="700"
-          fill="#9CA3AF"
-          letterSpacing="0.12em"
-          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
-        >
-          POSITIVE FEEDBACK
-        </text>
-        <text
-          x={420}
-          y={396}
-          textAnchor="middle"
-          fontSize="11"
-          fontWeight="700"
-          fill="#9CA3AF"
-          letterSpacing="0.12em"
-          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
-        >
-          LOOP
-        </text>
-
-        {/* Nodes */}
+        {/* Nodes: circles + labels */}
         {NODES.map((node) => (
-          <g key={node.id} filter="url(#nodeShadow2)">
+          <g key={node.id} filter="url(#nodeShadow3)">
             <circle cx={node.x} cy={node.y} r={node.r} fill={node.color} />
-            {/* Dashed ring for the central hub node */}
+            {/* Dashed outer ring on central hub */}
             {node.id === "yields" && (
               <circle
                 cx={node.x}
                 cy={node.y}
-                r={node.r + 6}
+                r={node.r + 7}
                 fill="none"
-                stroke={node.color}
+                stroke="#E53030"
                 strokeWidth="1.5"
-                strokeDasharray="4 3"
-                opacity="0.5"
+                strokeDasharray="5 3"
+                opacity="0.45"
               />
             )}
             <MultilineText
               text={node.label}
               x={node.x}
               y={node.y}
-              fontSize={node.r >= 40 ? 11 : 9.5}
+              fontSize={node.r >= 50 ? 11.5 : 9}
               fill="white"
             />
           </g>
