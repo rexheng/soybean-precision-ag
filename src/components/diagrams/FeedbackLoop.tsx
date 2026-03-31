@@ -9,32 +9,27 @@ interface FeedbackLoopProps {
 interface Node {
   label: string;
   color: string;
-  /** Radius of the node — larger = more prominent */
   r: number;
 }
 
 const NODES: Node[] = [
-  { label: "Deforestation", color: "#c0392b", r: 38 },
-  { label: "Altered Rainfall\nPatterns", color: "#e67e22", r: 34 },
-  { label: "Crop Yields\nDecline", color: "#e74c3c", r: 44 }, // Central impact — larger
-  { label: "Farm Incomes\nFall", color: "#f39c12", r: 34 },
-  { label: "State Revenue\nDeclines", color: "#e67e22", r: 34 },
-  { label: "Loss for Bond\nInvestors", color: "#d35400", r: 34 },
-  { label: "Supply Chain\nLosses", color: "#e67e22", r: 34 },
-  { label: "Loss in Export\nRevenue", color: "#e67e22", r: 34 },
-  { label: "Cargill is\nAffected", color: "#27ae60", r: 36 },
-  { label: "More Land\nClearing", color: "#c0392b", r: 34 },
+  { label: "Deforestation", color: "#6B2226", r: 36 },
+  { label: "Altered Rainfall\nPatterns", color: "#D97B2B", r: 32 },
+  { label: "Crop Yields\nDecline", color: "#CC2936", r: 50 },
+  { label: "Farm Incomes\nFall", color: "#D97B2B", r: 32 },
+  { label: "State Revenue\nDeclines", color: "#D97B2B", r: 32 },
+  { label: "Loss for Bond\nInvestors", color: "#C05E24", r: 32 },
+  { label: "Supply Chain\nLosses", color: "#D97B2B", r: 32 },
+  { label: "Loss in Export\nRevenue", color: "#D97B2B", r: 32 },
+  { label: "Cargill is\nAffected", color: "#2E7D32", r: 34 },
+  { label: "More Land\nClearing", color: "#6B2226", r: 32 },
 ];
 
-const CX = 350;
-const CY = 310;
-const ORBIT = 210;
+const CX = 360;
+const CY = 330;
+const ORBIT = 230;
 
-function getNodePosition(
-  index: number,
-  total: number,
-): { x: number; y: number } {
-  // Distribute evenly, starting from top
+function nodePos(index: number, total: number): { x: number; y: number } {
   const angle = ((2 * Math.PI) / total) * index - Math.PI / 2;
   return {
     x: CX + ORBIT * Math.cos(angle),
@@ -43,10 +38,11 @@ function getNodePosition(
 }
 
 /**
- * Build a curved arrow path between two nodes (arc segment).
- * We offset start/end by the node radius so the arrow emerges from the edge.
+ * Build a curved SVG path between two node edges.
+ * Uses a quadratic bezier with a control point offset perpendicular
+ * to the line between nodes, curving clockwise.
  */
-function buildArrowPath(
+function curvedArrowPath(
   x1: number,
   y1: number,
   x2: number,
@@ -57,19 +53,25 @@ function buildArrowPath(
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) return "";
   const ux = dx / dist;
   const uy = dy / dist;
 
-  // Offset start and end by node radii + small gap
-  const sx = x1 + ux * (r1 + 6);
-  const sy = y1 + uy * (r1 + 6);
-  const ex = x2 - ux * (r2 + 10);
-  const ey = y2 - uy * (r2 + 10);
+  // Start/end at node edges
+  const gap = 5;
+  const sx = x1 + ux * (r1 + gap);
+  const sy = y1 + uy * (r1 + gap);
+  const ex = x2 - ux * (r2 + gap + 6);
+  const ey = y2 - uy * (r2 + gap + 6);
 
-  // Sweep radius for a gentle curve
-  const sweepR = dist * 0.8;
+  // Perpendicular offset for clockwise curve (rotate unit vector -90 degrees)
+  const perpX = uy;
+  const perpY = -ux;
+  const curvature = dist * 0.2;
+  const cpx = (sx + ex) / 2 + perpX * curvature;
+  const cpy = (sy + ey) / 2 + perpY * curvature;
 
-  return `M ${sx} ${sy} A ${sweepR} ${sweepR} 0 0 1 ${ex} ${ey}`;
+  return `M ${sx} ${sy} Q ${cpx} ${cpy} ${ex} ${ey}`;
 }
 
 function MultilineText({
@@ -86,7 +88,7 @@ function MultilineText({
   fill: string;
 }) {
   const lines = text.split("\n");
-  const lineHeight = fontSize * 1.2;
+  const lineHeight = fontSize * 1.25;
   const startY = y - ((lines.length - 1) * lineHeight) / 2;
 
   return (
@@ -99,8 +101,9 @@ function MultilineText({
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={fontSize}
-          fontWeight="600"
+          fontWeight="700"
           fill={fill}
+          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
         >
           {line}
         </text>
@@ -111,94 +114,69 @@ function MultilineText({
 
 export default function FeedbackLoop({ className }: FeedbackLoopProps) {
   const total = NODES.length;
-  const positions = NODES.map((_, i) => getNodePosition(i, total));
+  const positions = NODES.map((_, i) => nodePos(i, total));
 
   return (
-    <figure className={className}>
+    <figure
+      className={className}
+      style={{
+        background: "#FAFAF8",
+        borderRadius: "12px",
+        padding: "24px 16px 16px",
+      }}
+    >
       <svg
-        viewBox="0 0 700 640"
+        viewBox="0 0 720 680"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full max-w-[700px] mx-auto"
+        className="w-full max-w-[720px] mx-auto"
         role="img"
         aria-label="Positive feedback loop diagram showing deforestation-yield vicious cycle"
       >
-        <rect width="700" height="640" fill="white" rx="8" />
-
-        {/* Title */}
-        <text
-          x={CX}
-          y="30"
-          textAnchor="middle"
-          fontSize="14"
-          fontWeight="600"
-          fill="#1a1a1a"
-        >
-          Fig 3.2 &mdash; Positive Feedback Loop: Deforestation-Yield Vicious
-          Cycle
-        </text>
-
-        {/* Center label */}
-        <text
-          x={CX}
-          y={CY - 12}
-          textAnchor="middle"
-          fontSize="12"
-          fontWeight="600"
-          fill="#6b7280"
-        >
-          VICIOUS
-        </text>
-        <text
-          x={CX}
-          y={CY + 6}
-          textAnchor="middle"
-          fontSize="12"
-          fontWeight="600"
-          fill="#6b7280"
-        >
-          CYCLE
-        </text>
-        {/* Circular arrow hint in center */}
-        <path
-          d={`M ${CX - 18} ${CY + 20} A 22 22 0 1 1 ${CX + 18} ${CY + 20}`}
-          fill="none"
-          stroke="#d1d5db"
-          strokeWidth="1.5"
-          markerEnd="url(#centerArrow)"
-        />
-
         <defs>
-          {/* Arrow marker */}
+          {/* Arrowhead marker */}
           <marker
-            id="flowArrow"
-            viewBox="0 0 10 10"
-            refX="8"
+            id="feedbackArrow"
+            viewBox="0 0 12 10"
+            refX="10"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
+            markerWidth="8"
+            markerHeight="8"
+            orient="auto"
           >
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#6b7280" />
+            <path d="M 0 1 L 12 5 L 0 9 L 3 5 Z" fill="#555" />
           </marker>
+
+          {/* Drop shadow for nodes */}
+          <filter id="nodeShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow
+              dx="0"
+              dy="2"
+              stdDeviation="3"
+              floodColor="#000"
+              floodOpacity="0.15"
+            />
+          </filter>
+
+          {/* Center circular arrow icon */}
           <marker
-            id="centerArrow"
+            id="centerLoopArrow"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
             markerWidth="5"
             markerHeight="5"
-            orient="auto-start-reverse"
+            orient="auto"
           >
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#d1d5db" />
+            <path d="M 0 1 L 10 5 L 0 9 Z" fill="#9CA3AF" />
           </marker>
         </defs>
 
-        {/* Arrows between consecutive nodes */}
+        {/* Curved arrows between consecutive nodes */}
         {positions.map((pos, i) => {
           const next = positions[(i + 1) % total];
           const node = NODES[i];
           const nextNode = NODES[(i + 1) % total];
-          const path = buildArrowPath(
+          const d = curvedArrowPath(
             pos.x,
             pos.y,
             next.x,
@@ -209,52 +187,70 @@ export default function FeedbackLoop({ className }: FeedbackLoopProps) {
           return (
             <path
               key={`arrow-${i}`}
-              d={path}
+              d={d}
               fill="none"
-              stroke="#6b7280"
+              stroke="#555"
               strokeWidth="2"
-              markerEnd="url(#flowArrow)"
+              strokeLinecap="round"
+              markerEnd="url(#feedbackArrow)"
             />
           );
         })}
 
-        {/* Nodes */}
+        {/* Center "VICIOUS CYCLE" label */}
+        <text
+          x={CX}
+          y={CY - 16}
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="700"
+          fill="#6B7280"
+          letterSpacing="0.12em"
+          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
+        >
+          VICIOUS
+        </text>
+        <text
+          x={CX}
+          y={CY + 2}
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="700"
+          fill="#6B7280"
+          letterSpacing="0.12em"
+          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
+        >
+          CYCLE
+        </text>
+        {/* Circular arrow icon beneath text */}
+        <path
+          d={`M ${CX - 20} ${CY + 22} A 24 24 0 1 1 ${CX + 16} ${CY + 24}`}
+          fill="none"
+          stroke="#9CA3AF"
+          strokeWidth="1.5"
+          markerEnd="url(#centerLoopArrow)"
+        />
+
+        {/* Nodes: circles + labels */}
         {NODES.map((node, i) => {
           const { x, y } = positions[i];
           return (
-            <g key={`node-${i}`}>
-              {/* Outer glow for the central impact node */}
-              {i === 2 && (
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={node.r + 4}
-                  fill="none"
-                  stroke={node.color}
-                  strokeWidth="2"
-                  strokeDasharray="4,3"
-                  opacity="0.5"
-                />
-              )}
-              <circle
-                cx={x}
-                cy={y}
-                r={node.r}
-                fill={node.color}
-                opacity="0.92"
-              />
+            <g key={`node-${i}`} filter="url(#nodeShadow)">
+              <circle cx={x} cy={y} r={node.r} fill={node.color} />
               <MultilineText
                 text={node.label}
                 x={x}
                 y={y}
-                fontSize={10}
+                fontSize={node.r >= 44 ? 11 : 9.5}
                 fill="white"
               />
             </g>
           );
         })}
       </svg>
-      <figcaption className="mt-2 text-center text-xs text-zinc-500 italic leading-relaxed max-w-xl mx-auto">
+      <figcaption className="mt-3 text-center text-xs text-zinc-500 italic leading-relaxed max-w-xl mx-auto">
+        <strong className="not-italic text-zinc-600">Fig 3.2</strong>
+        {" "}Positive Feedback Loop: Deforestation-Yield Vicious Cycle.
         Source: Adapted from De Souza Batista et al., &ldquo;Deforestation
         Induced Changes in the Cerrado, Amazon and Atlantic Forest Water
         Balance&rdquo;
